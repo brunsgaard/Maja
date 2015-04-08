@@ -7,12 +7,12 @@ from oauth2client import file
 from random import shuffle
 from termcolor import colored
 
-
 import datetime
 import httplib2
 import json
 import re
 import requests
+import sys
 
 
 __author__ = 'jonas.brunsgaard@gmail.com (Jonas Brunsgaard)'
@@ -96,7 +96,7 @@ class TGWorkShift(object):
             print(str_entry)
 
     def append_text_to_entry(self, date, text, start, end):
-        text = '{} {}'.format(text, raw_input(text + ' '))
+        text = '{}{}'.format(text, raw_input(text))
         return self.Shift(date, text, start, end)
 
     def overwrite_text_to_entry(self, date, text, start, end):
@@ -106,71 +106,60 @@ class TGWorkShift(object):
 
         # pick an entry
         while True:
-            input_ = raw_input('pick entry: ')
+            input_ = raw_input('Pick entry: ')
             try:
                 n = int(input_)
                 entry = self.entries[n]
                 break
             except:
                 print('Come on Maja, that is not a valid entry, try again')
-                pass
 
         # choose operation
         op = None
         while op not in ['a', 'o']:
-            op = raw_input('owerwrite or append text? (o/a): ')
+            op = raw_input('Overwrite or append text? (o/a): ')
             if op == 'a':
                 self.entries[n] = self.append_text_to_entry(*entry)
             if op == 'o':
                 self.entries[n] = self.overwrite_text_to_entry(*entry)
 
-    def modify(self):
-        self.list_entries()
-        while True:
-            self.modify_entry()
-            self.list_entries()
-            if raw_input("Edit another entry?: ") != 'n':
-                continue
-            break
 
 class CalendarPusher(object):
-    pass
+
+    def __init__(self):
+        storage = file.Storage('calendar' + '.dat')
+        credentials = storage.get()
+        http = credentials.authorize(http=httplib2.Http())
+        self.cal = discovery.build('calendar', 'v3', http=http)
+
+    def push_entry(self, date, text, start, end):
+        data = {
+            'summary': text,
+            'start': {'dateTime': '{}T{}:00.000+02:00'.format(date, start)},
+            'end': {'dateTime': '{}T{}:00.000+02:00'.format(date, end)},
+        }
+        return self.cal.events().insert(
+            calendarId='primary', body=data).execute()
 
 
 if __name__ == "__main__":
-    url = 'http://doodle.com/4qeiacg36ppi3h92'
+    url = sys.argv[1]
     shifts = TGWorkShift(url)
-    shifts.modify()
+    cal = CalendarPusher()
+
     shifts.list_entries()
-#    print(shifts)
-#    storage = file.Storage('calendar' + '.dat')
-#    credentials = storage.get()
-#    http = credentials.authorize(http=httplib2.Http())
-#    service = discovery.build('calendar', 'v3', http=http)
-#
-#    #  flow = client.flow_from_clientsecrets(
-#    #      'client_secrets.json',
-#    #      scope='https://www.googleapis.com/auth/calendar')
-#
-#    events = []
-#    for date, text, start, end in shifts:
-#        data = {
-#            'summary': text,
-#            'start': {'dateTime': '{}T{}:00.000+02:00'.format(date, start)},
-#            'end': {'dateTime': '{}T{}:00.000+02:00'.format(date, end)},
-#        }
-#        e = service.events().insert(calendarId='primary', body=data)
-#        print('{:<3} {}-{:<6} {}'.format(date.day, start, end, text))
-#
-#    while True:
-#        proceed = raw_input('\nShould I continue? (y/n): ')
-#        if proceed in ['y', 'n']:
-#            break
-#
-#    if proceed == 'y':
-#        for e in events:
-#            pass
-#            # e.execute()
-#        print('Done!')
-#    else:
-#        print('Aborted!')
+    while True:
+        input_ = raw_input('Do you want to modify the entries? (y/n): ')
+        if input_ == 'y':
+            shifts.modify_entry()
+            shifts.list_entries()
+        elif input_ == 'n':
+            break
+        else:
+            print('What, Try again')
+
+    for shift in shifts:
+        cal.push_entry(*shift)
+        break
+
+    print('Done')
