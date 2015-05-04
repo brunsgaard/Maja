@@ -1,5 +1,6 @@
 from __future__ import absolute_import
 
+from collections import defaultdict
 from collections import namedtuple
 from googleapiclient import discovery
 from itertools import groupby
@@ -131,8 +132,43 @@ class CalendarPusher(object):
         credentials = storage.get()
         http = credentials.authorize(http=httplib2.Http())
         self.cal = discovery.build('calendar', 'v3', http=http)
+        self.events = defaultdict(list)
+
+        # Events
+        # {
+        #     '2015-10-29': '$id'
+        # }
+
+        page_token = None
+        while True:
+
+            event_list = self.cal.events().list(
+                calendarId='primary',
+                pageToken=page_token
+            ).execute()
+            for e in event_list['items']:
+                id_, date = e['id'], e['start'].get('dateTime', None)
+                if date is None:
+                    self.cal.events().delete(
+                        calendarId='primary',
+                        eventId=id_).execute()
+                    continue
+
+                y, m, d = map(int, date[:10].split('-'))
+                date = datetime.date(y, m, d)
+                self.events[date].append(id_)
+
+            page_token = event_list.get('nextPageToken')
+            if not page_token:
+                break
+
+    def clean_date(self, date):
+        for id_ in self.events[date]:
+            self.cal.events().delete(
+                calendarId='primary', eventId=id_).execute()
 
     def push_entry(self, date, text, start, end):
+        self.clean_date(date)
         data = {
             'summary': text,
             'start': {'dateTime': '{}T{}:00.000+02:00'.format(date, start)},
@@ -158,8 +194,18 @@ if __name__ == "__main__":
         else:
             print('What, Try again')
 
-    for shift in shifts:
-        cal.push_entry(*shift)
-        break
-
-    print('Done')
+    while True:
+        input_ = raw_input('Do You want to post the entries to the'
+                           ' google calender? (y/n): ')
+        if input_ == 'y':
+            for shift in shifts:
+                cal.push_entry(*shift)
+                sys.stdout.write('.')
+                sys.stdout.flush()
+            print('\nDone')
+            break
+        elif input_ == 'n':
+            print('Abort!!')
+            break
+        else:
+            print('What, Try again')
