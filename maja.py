@@ -14,6 +14,7 @@ import json
 import re
 import requests
 import sys
+import pytz
 
 
 __author__ = 'jonas.brunsgaard@gmail.com (Jonas Brunsgaard)'
@@ -169,10 +170,17 @@ class CalendarPusher(object):
 
     def push_entry(self, date, text, start, end):
         self.clean_date(date)
+        cop = pytz.timezone('Europe/Copenhagen')
+        start_hour, start_minute = [int(o) for o in start.split(':')]
+        end_hour, end_minute = [int(o) for o in end.split(':')]
+        loc_dt_start = cop.localize(datetime.datetime(
+            date.year, date.month, date.day, start_hour, start_minute, 0, 0))
+        loc_dt_end = cop.localize(datetime.datetime(
+            date.year, date.month, date.day, end_hour, end_minute, 0, 0))
         data = {
             'summary': text,
-            'start': {'dateTime': '{}T{}:00.000+02:00'.format(date, start)},
-            'end': {'dateTime': '{}T{}:00.000+02:00'.format(date, end)},
+            'start': {'dateTime': '{}'.format(loc_dt_start.isoformat())},
+            'end': {'dateTime': '{}'.format(loc_dt_end.isoformat())},
         }
         return self.cal.events().insert(
             calendarId='primary', body=data).execute()
@@ -184,15 +192,15 @@ if __name__ == "__main__":
     cal = CalendarPusher()
 
     shifts.list_entries()
-    while True:
-        input_ = raw_input('Do you want to modify the entries? (y/n): ')
-        if input_ == 'y':
-            shifts.modify_entry()
-            shifts.list_entries()
-        elif input_ == 'n':
-            break
-        else:
-            print('What, Try again')
+    # while True:
+    #     input_ = raw_input('Do you want to modify the entries? (y/n): ')
+    #     if input_ == 'y':
+    #         shifts.modify_entry()
+    #         shifts.list_entries()
+    #     elif input_ == 'n':
+    #         break
+    #     else:
+    #         print('What, Try again')
 
     while True:
         input_ = raw_input('Do You want to post the entries to the'
