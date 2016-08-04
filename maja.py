@@ -90,9 +90,9 @@ class TGWorkShift(object):
     def list_entries(self):
         for n, t in enumerate(self.entries):
             date, text, start, end = t
-            date_str = '{}/{}'.format(date.day, date.month)
-            str_entry = ('{:<4} - {:<4} {}-{:<6} {}'.format(
-                '({})'.format(n), date_str, start, end, text))
+            date_str = u'{}/{}'.format(date.day, date.month)
+            str_entry = (u'{:<4} - {:<4} {}-{:<6} {}'.format(
+                u'({})'.format(n), date_str, start, end, text))
             if date.weekday() == 5:
                 str_entry = colored(str_entry, 'magenta')
             print(str_entry)
