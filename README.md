@@ -5,9 +5,7 @@ maja is a small application/script that fetches data from a
 The approach is pretty naive for now, as regex are used to extract data
 from the web page. A better solution would be to read the `xls` file, that
 can be exported from doodle.com. I also have some concerns about the date
-formats/parsing. As mentioned, right now the approch is very naive and small
-changes may break the application, using the `xls` file 'may' also resolve
-this issue.
+formats/parsing. 
 
 Example of a run:  
 
